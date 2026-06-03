@@ -5,16 +5,22 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
     public function up(): void {
-        Schema::create('tim_sezona', function (Blueprint $table) {
+        Schema::create('dogadjaji', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('tim_id')->constrained('timovi')->cascadeOnDelete();
             $table->foreignId('sezona_id')->constrained('sezone')->cascadeOnDelete();
-            $table->integer('ukupni_bodovi')->default(0);
-            $table->integer('odigrani_dogadjaji')->default(0);
-            $table->integer('rang')->nullable();
+            $table->string('naziv');
+            $table->string('slug')->unique();
+            $table->dateTime('datum_dogadjaja');
+            $table->string('lokacija')->nullable();
+            $table->text('opis')->nullable();
+            $table->enum('status', ['nadolazeci', 'u_toku', 'zavrsen'])->default('nadolazeci');
+            $table->integer('max_timova')->default(20);
+            $table->integer('broj_rundi')->default(5);
             $table->timestamps();
-            $table->unique(['tim_id', 'sezona_id']);
+            $table->softDeletes();
+            $table->index(['sezona_id', 'status']);
+            $table->index('datum_dogadjaja');
         });
     }
-    public function down(): void { Schema::dropIfExists('tim_sezona'); }
+    public function down(): void { Schema::dropIfExists('dogadjaji'); }
 };

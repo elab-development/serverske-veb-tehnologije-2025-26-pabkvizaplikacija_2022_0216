@@ -5,6 +5,10 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
     public function up(): void {
+        if (Schema::hasTable('tim_sezona')) {
+            return;
+        }
+
         Schema::create('tim_sezona', function (Blueprint $table) {
             $table->id();
             $table->foreignId('tim_id')->constrained('timovi')->cascadeOnDelete();
@@ -16,5 +20,6 @@ return new class extends Migration {
             $table->unique(['tim_id', 'sezona_id']);
         });
     }
+
     public function down(): void { Schema::dropIfExists('tim_sezona'); }
 };

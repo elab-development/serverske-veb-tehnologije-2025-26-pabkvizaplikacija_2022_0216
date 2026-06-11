@@ -3,19 +3,15 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\ApiResponse;
 use App\Models\Dogadjaj;
 use App\Models\RezultatDogadjaja;
 use App\Models\Sezona;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 
 class RezultatController extends Controller
 {
-    /**
-     * GET /api/sezone/{sezona}/dogadjaji/{dogadjaj}/rezultati
-     * Lista svih rezultata za događaj, sortirana po rangu.
-     */
     public function index(Sezona $sezona, Dogadjaj $dogadjaj): JsonResponse
     {
         $rezultati = $dogadjaj->rezultati()
@@ -23,13 +19,9 @@ class RezultatController extends Controller
             ->orderBy('rang')
             ->get();
 
-        return response()->json($rezultati);
+        return ApiResponse::uspesno($rezultati, "Rezultati za događaj '{$dogadjaj->naziv}'.");
     }
 
-    /**
-     * POST /api/sezone/{sezona}/dogadjaji/{dogadjaj}/rezultati
-     * Unos rezultata za jedan tim na događaju.
-     */
     public function store(Request $request, Sezona $sezona, Dogadjaj $dogadjaj): JsonResponse
     {
         $validirano = $request->validate([
@@ -44,36 +36,21 @@ class RezultatController extends Controller
             $validirano + ['dogadjaj_id' => $dogadjaj->id]
         );
 
-        // Ažuriraj scoreboard sezone
         $rezultat->sinhronizujTabeluSezone();
+        $rezultat->load('tim:id,naziv,slug');
 
-        return response()->json(
-            $rezultat->load('tim:id,naziv,slug'),
-            Response::HTTP_CREATED
-        );
+        return ApiResponse::kreirano($rezultat, 'Rezultat je uspešno unet.');
     }
 
-    /**
-     * GET /api/sezone/{sezona}/dogadjaji/{dogadjaj}/rezultati/{rezultat}
-     * Detalji jednog rezultata.
-     */
     public function show(Sezona $sezona, Dogadjaj $dogadjaj, RezultatDogadjaja $rezultat): JsonResponse
     {
         $rezultat->load('tim:id,naziv,slug,logo_url');
 
-        return response()->json($rezultat);
+        return ApiResponse::uspesno($rezultat, 'Detalji rezultata.');
     }
 
-    /**
-     * PUT /api/sezone/{sezona}/dogadjaji/{dogadjaj}/rezultati/{rezultat}
-     * Izmena rezultata (npr. korekcija bodova).
-     */
-    public function update(
-        Request $request,
-        Sezona $sezona,
-        Dogadjaj $dogadjaj,
-        RezultatDogadjaja $rezultat
-    ): JsonResponse {
+    public function update(Request $request, Sezona $sezona, Dogadjaj $dogadjaj, RezultatDogadjaja $rezultat): JsonResponse
+    {
         $validirano = $request->validate([
             'bodovi'   => 'sometimes|integer|min:0',
             'rang'     => 'nullable|integer|min:1',
@@ -81,34 +58,22 @@ class RezultatController extends Controller
         ]);
 
         $rezultat->update($validirano);
-
-        // Ponovo sinhronizuj scoreboard nakon korekcije
         $rezultat->sinhronizujTabeluSezone();
 
-        return response()->json($rezultat->load('tim:id,naziv,slug'));
+        return ApiResponse::uspesno(
+            $rezultat->load('tim:id,naziv,slug'),
+            'Rezultat je uspešno ažuriran.'
+        );
     }
 
-    /**
-     * DELETE /api/sezone/{sezona}/dogadjaji/{dogadjaj}/rezultati/{rezultat}
-     * Brisanje rezultata.
-     */
-    public function destroy(
-        Sezona $sezona,
-        Dogadjaj $dogadjaj,
-        RezultatDogadjaja $rezultat
-    ): JsonResponse {
+    public function destroy(Sezona $sezona, Dogadjaj $dogadjaj, RezultatDogadjaja $rezultat): JsonResponse
+    {
         $rezultat->delete();
-
-        // Sinhronizuj scoreboard nakon brisanja
         $rezultat->sinhronizujTabeluSezone();
 
-        return response()->json(null, Response::HTTP_NO_CONTENT);
+        return ApiResponse::obrisano('Rezultat je uspešno obrisan.');
     }
 
-    /**
-     * POST /api/sezone/{sezona}/dogadjaji/{dogadjaj}/rezultati/batch
-     * Masovni unos rezultata za sve timove odjednom.
-     */
     public function batch(Request $request, Sezona $sezona, Dogadjaj $dogadjaj): JsonResponse
     {
         $validirano = $request->validate([
@@ -130,6 +95,6 @@ class RezultatController extends Controller
                 return $rezultat;
             });
 
-        return response()->json($sacuvani, Response::HTTP_CREATED);
+        return ApiResponse::kreirano($sacuvani, 'Svi rezultati su uspešno uneti.');
     }
 }

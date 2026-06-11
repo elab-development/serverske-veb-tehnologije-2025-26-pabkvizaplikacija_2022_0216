@@ -1,13 +1,14 @@
 <?php
 
+use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -17,27 +18,31 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // API rute vraćaju JSON 401 umesto redirecta na login stranicu
+        $middleware->redirectGuestsTo(function (Request $request) {
+            if ($request->is('api/*')) {
+                return null;
+            }
+            return route('login');
+        });
     })
     ->withExceptions(function (Exceptions $exceptions): void {
 
-        // Sve greške na api/* rutama vraćamo kao JSON
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*')
         );
 
-        // 404 – Model nije pronađen (Route Model Binding)
-        $exceptions->render(function (ModelNotFoundException $e, Request $request) {
+        // 401 – Neautentifikovan korisnik
+        $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, Request $request) {
             if ($request->is('api/*')) {
-                $model = class_basename($e->getModel());
                 return response()->json([
                     'uspesno' => false,
-                    'poruka'  => "Resurs '{$model}' nije pronađen.",
-                ], 404);
+                    'poruka'  => 'Niste prijavljeni. Potreban je Bearer token.',
+                ], 401);
             }
         });
 
-        // 404 – NotFoundHttpException (wrappuje ModelNotFoundException u novijim verzijama)
+        // 404 – Model nije pronađen
         $exceptions->render(function (NotFoundHttpException $e, Request $request) {
             if ($request->is('api/*')) {
                 $previous = $e->getPrevious();

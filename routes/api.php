@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->group(function () {
 
     // ════════════════════════════════════════════════════════════════
-    // AUTENTIFIKACIJA (javne rute – ne zahtevaju token)
+    // AUTENTIFIKACIJA – javne rute (bez tokena)
     // ════════════════════════════════════════════════════════════════
 
     Route::prefix('auth')->group(function () {
@@ -19,7 +19,33 @@ Route::prefix('v1')->group(function () {
     });
 
     // ════════════════════════════════════════════════════════════════
-    // ZAŠTIĆENE RUTE (zahtevaju: Authorization: Bearer {token})
+    // JAVNE READ RUTE – dostupne svima bez tokena
+    // Samo GET zahtevi – čitanje podataka
+    // ════════════════════════════════════════════════════════════════
+
+    // Sezone
+    Route::get('sezone/aktivna',              [SezonaController::class, 'aktivna']);
+    Route::get('sezone',                      [SezonaController::class, 'index']);
+    Route::get('sezone/{sezona}',             [SezonaController::class, 'show']);
+    Route::get('sezone/{sezona}/tabela-rezultata', [SezonaController::class, 'tabelaRezultata']);
+
+    // Timovi
+    Route::get('timovi',                      [TimController::class, 'index']);
+    Route::get('timovi/{tim}',                [TimController::class, 'show']);
+    Route::get('timovi/{tim}/statistike',     [TimController::class, 'statistike']);
+
+    // Dogadjaji
+    Route::get('dogadjaji/aktivni',           [DogadjajController::class, 'aktivni']);
+    Route::get('sezone/{sezona}/dogadjaji',   [DogadjajController::class, 'index']);
+    Route::get('sezone/{sezona}/dogadjaji/{dogadjaj}', [DogadjajController::class, 'show']);
+
+    // Rezultati
+    Route::get('sezone/{sezona}/dogadjaji/{dogadjaj}/rezultati',             [RezultatController::class, 'index']);
+    Route::get('sezone/{sezona}/dogadjaji/{dogadjaj}/rezultati/{rezultat}',  [RezultatController::class, 'show']);
+
+    // ════════════════════════════════════════════════════════════════
+    // ZAŠTIĆENE RUTE – samo autentifikovani korisnici (Bearer token)
+    // CREATE, UPDATE, DELETE operacije
     // ════════════════════════════════════════════════════════════════
 
     Route::middleware('auth:sanctum')->group(function () {
@@ -30,60 +56,28 @@ Route::prefix('v1')->group(function () {
             Route::get('ja',      [AutentifikacijaController::class, 'ja']);
         });
 
-        // ── 1. Resource rute ──────────────────────────────────────────────────
+        // Sezone – CREATE, UPDATE, DELETE
+        Route::post('sezone',                [SezonaController::class, 'store']);
+        Route::put('sezone/{sezona}',        [SezonaController::class, 'update']);
+        Route::delete('sezone/{sezona}',     [SezonaController::class, 'destroy']);
 
-        Route::apiResource('sezone', SezonaController::class)
-             ->parameters(['sezone' => 'sezona']);
+        // Timovi – CREATE, UPDATE, DELETE
+        Route::post('timovi',                [TimController::class, 'store']);
+        Route::put('timovi/{tim}',           [TimController::class, 'update']);
+        Route::delete('timovi/{tim}',        [TimController::class, 'destroy']);
+        Route::post('timovi/{tim}/registracija/{sezona}', [TimController::class, 'registracijaZaSezonu']);
 
-        Route::apiResource('timovi', TimController::class)
-             ->parameters(['timovi' => 'tim']);
+        // Dogadjaji – CREATE, UPDATE, DELETE
+        Route::post('sezone/{sezona}/dogadjaji',                      [DogadjajController::class, 'store']);
+        Route::put('sezone/{sezona}/dogadjaji/{dogadjaj}',            [DogadjajController::class, 'update']);
+        Route::delete('sezone/{sezona}/dogadjaji/{dogadjaj}',         [DogadjajController::class, 'destroy']);
+        Route::patch('sezone/{sezona}/dogadjaji/{dogadjaj}/status',   [DogadjajController::class, 'promeniStatus']);
 
-        // ── 2. Statičke rute ──────────────────────────────────────────────────
-
-        Route::get('sezone/aktivna',    [SezonaController::class, 'aktivna']);
-        Route::get('dogadjaji/aktivni', [DogadjajController::class, 'aktivni']);
-
-        // ── 3. Nested rute ────────────────────────────────────────────────────
-
-        Route::prefix('sezone/{sezona}')->group(function () {
-
-            Route::get('tabela-rezultata', [SezonaController::class, 'tabelaRezultata']);
-
-            Route::prefix('dogadjaji')->group(function () {
-                Route::get('/',                    [DogadjajController::class, 'index']);
-                Route::post('/',                   [DogadjajController::class, 'store']);
-                Route::get('/{dogadjaj}',          [DogadjajController::class, 'show']);
-                Route::put('/{dogadjaj}',          [DogadjajController::class, 'update']);
-                Route::delete('/{dogadjaj}',       [DogadjajController::class, 'destroy']);
-
-                Route::prefix('/{dogadjaj}/rezultati')->group(function () {
-                    Route::get('/',              [RezultatController::class, 'index']);
-                    Route::post('/',             [RezultatController::class, 'store']);
-                    Route::get('/{rezultat}',    [RezultatController::class, 'show']);
-                    Route::put('/{rezultat}',    [RezultatController::class, 'update']);
-                    Route::delete('/{rezultat}', [RezultatController::class, 'destroy']);
-                    Route::post('/batch',        [RezultatController::class, 'batch']);
-                });
-            });
-        });
-
-        // ── 4. Akcijske rute ──────────────────────────────────────────────────
-
-        Route::patch(
-            'sezone/{sezona}/dogadjaji/{dogadjaj}/status',
-            [DogadjajController::class, 'promeniStatus']
-        );
-
-        Route::post(
-            'timovi/{tim}/registracija/{sezona}',
-            [TimController::class, 'registracijaZaSezonu']
-        );
-
-        Route::get(
-            'timovi/{tim}/statistike',
-            [TimController::class, 'statistike']
-        );
-
+        // Rezultati – CREATE, UPDATE, DELETE
+        Route::post('sezone/{sezona}/dogadjaji/{dogadjaj}/rezultati',                    [RezultatController::class, 'store']);
+        Route::post('sezone/{sezona}/dogadjaji/{dogadjaj}/rezultati/batch',              [RezultatController::class, 'batch']);
+        Route::put('sezone/{sezona}/dogadjaji/{dogadjaj}/rezultati/{rezultat}',          [RezultatController::class, 'update']);
+        Route::delete('sezone/{sezona}/dogadjaji/{dogadjaj}/rezultati/{rezultat}',       [RezultatController::class, 'destroy']);
     });
 
 });

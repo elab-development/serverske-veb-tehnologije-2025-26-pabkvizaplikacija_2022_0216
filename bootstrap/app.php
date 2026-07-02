@@ -18,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+
         // API rute vraćaju JSON 401 umesto redirecta na login stranicu
         $middleware->redirectGuestsTo(function (Request $request) {
             if ($request->is('api/*')) {
@@ -25,6 +26,11 @@ return Application::configure(basePath: dirname(__DIR__))
             }
             return route('login');
         });
+
+        // Registracija middleware aliasa za proveru uloge
+        $middleware->alias([
+            'uloga' => \App\Http\Middleware\ProveriUlogu::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
 
@@ -32,7 +38,7 @@ return Application::configure(basePath: dirname(__DIR__))
             fn (Request $request) => $request->is('api/*')
         );
 
-        // 401 – Neautentifikovan korisnik
+        // 401 – Neautentifikovan
         $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, Request $request) {
             if ($request->is('api/*')) {
                 return response()->json([
@@ -42,7 +48,7 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
 
-        // 404 – Model nije pronađen
+        // 404 – Model ili ruta nije pronađena
         $exceptions->render(function (NotFoundHttpException $e, Request $request) {
             if ($request->is('api/*')) {
                 $previous = $e->getPrevious();

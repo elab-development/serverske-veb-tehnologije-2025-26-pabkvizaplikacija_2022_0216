@@ -1,58 +1,348 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Pub Kviz API
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+REST API backend aplikacija za praćenje Pub Kviza, izgrađena na Laravel 11 framework-u.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 📋 Sadržaj
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- [Opis projekta](#opis-projekta)
+- [Tehnologije](#tehnologije)
+- [Instalacija](#instalacija)
+- [Konfiguracija](#konfiguracija)
+- [Pokretanje](#pokretanje)
+- [API Dokumentacija](#api-dokumentacija)
+- [Testiranje](#testiranje)
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+---
 
-## Learning Laravel
+## Opis projekta
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+Aplikacija omogućava organizaciju i praćenje takmičenja u formatu Pub Kviza. Sistem podržava:
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+- Upravljanje sezonama takmičenja
+- Registraciju i praćenje timova
+- Kreiranje kviz večeri kao događaja
+- Unos i automatsko ažuriranje rezultata i scoreboardа
+- Token-baziranu autentifikaciju korisnika
+- Reset zaboravljene lozinke
+- Export podataka u CSV format
+- Paginaciju i filtriranje svih lista
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+---
 
-## Agentic Development
+## Tehnologije
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+- **PHP** 8.4
+- **Laravel** 11
+- **Laravel Sanctum** – autentifikacija
+- **MySQL** – baza podataka
+- **Composer** – upravljanje zavisnostima
+
+---
+
+## Instalacija
+
+### Preduslovi
+
+- PHP >= 8.2
+- Composer
+- MySQL
+
+### Koraci
+
+**1. Kloniraj repozitorijum**
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+git clone https://github.com/korisnik/pub-kviz.git
+cd pub-kviz
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+**2. Instaliraj zavisnosti**
 
-## Contributing
+```bash
+composer install
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+**3. Kopiraj `.env` fajl**
 
-## Code of Conduct
+```bash
+cp .env.example .env
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+**4. Generisi application key**
 
-## Security Vulnerabilities
+```bash
+php artisan key:generate
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+**5. Podesi bazu podataka u `.env`**
 
-## License
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=pub-kviz
+DB_USERNAME=root
+DB_PASSWORD=
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+**6. Pokreni migracije**
+
+```bash
+php artisan migrate
+```
+
+**7. Instaliraj Sanctum**
+
+```bash
+php artisan install:api
+```
+
+---
+
+## Konfiguracija
+
+### `config/auth.php`
+
+Promeni provider da koristi `Korisnik` model:
+
+```php
+'providers' => [
+    'users' => [
+        'driver' => 'eloquent',
+        'model'  => App\Models\Korisnik::class,
+    ],
+],
+```
+
+---
+
+## Pokretanje
+
+```bash
+php artisan serve
+```
+
+Aplikacija je dostupna na `http://localhost:8000`
+
+---
+
+## API Dokumentacija
+
+Sve rute imaju prefiks `/api/v1`.
+
+### Autentifikacija
+
+| Metoda | Endpoint             | Opis                          | Zaštita |
+| ------ | -------------------- | ----------------------------- | ------- |
+| POST   | `/auth/registracija` | Registracija korisnika        | Javno   |
+| POST   | `/auth/prijava`      | Prijava i dobijanje tokena    | Javno   |
+| POST   | `/auth/odjava`       | Odjava i brisanje tokena      | Token   |
+| GET    | `/auth/ja`           | Podaci prijavljenog korisnika | Token   |
+
+### Lozinka
+
+| Metoda | Endpoint                 | Opis                 | Zaštita |
+| ------ | ------------------------ | -------------------- | ------- |
+| POST   | `/lozinka/zaboravljena`  | Slanje koda za reset | Javno   |
+| POST   | `/lozinka/verifikuj-kod` | Verifikacija koda    | Javno   |
+| POST   | `/lozinka/resetuj`       | Reset lozinke        | Javno   |
+| POST   | `/lozinka/promeni`       | Promena lozinke      | Token   |
+
+### Sezone
+
+| Metoda | Endpoint                        | Opis                    | Zaštita |
+| ------ | ------------------------------- | ----------------------- | ------- |
+| GET    | `/sezone`                       | Lista sezona            | Javno   |
+| GET    | `/sezone/aktivna`               | Trenutno aktivna sezona | Javno   |
+| GET    | `/sezone/{id}`                  | Detalji sezone          | Javno   |
+| GET    | `/sezone/{id}/tabela-rezultata` | Scoreboard sezone       | Javno   |
+| POST   | `/sezone`                       | Kreiranje sezone        | Token   |
+| PUT    | `/sezone/{id}`                  | Izmena sezone           | Token   |
+| DELETE | `/sezone/{id}`                  | Brisanje sezone         | Token   |
+
+### Timovi
+
+| Metoda | Endpoint                             | Opis                   | Zaštita |
+| ------ | ------------------------------------ | ---------------------- | ------- |
+| GET    | `/timovi`                            | Lista timova           | Javno   |
+| GET    | `/timovi/{id}`                       | Detalji tima           | Javno   |
+| GET    | `/timovi/{id}/statistike`            | Statistike tima        | Javno   |
+| POST   | `/timovi`                            | Registracija tima      | Token   |
+| PUT    | `/timovi/{id}`                       | Izmena tima            | Token   |
+| DELETE | `/timovi/{id}`                       | Brisanje tima          | Token   |
+| POST   | `/timovi/{id}/registracija/{sezona}` | Prijava tima za sezonu | Token   |
+
+### Događaji
+
+| Metoda | Endpoint                             | Opis                 | Zaštita |
+| ------ | ------------------------------------ | -------------------- | ------- |
+| GET    | `/dogadjaji/aktivni`                 | Svi aktivni događaji | Javno   |
+| GET    | `/sezone/{id}/dogadjaji`             | Događaji u sezoni    | Javno   |
+| GET    | `/sezone/{id}/dogadjaji/{id}`        | Detalji događaja     | Javno   |
+| POST   | `/sezone/{id}/dogadjaji`             | Kreiranje događaja   | Token   |
+| PUT    | `/sezone/{id}/dogadjaji/{id}`        | Izmena događaja      | Token   |
+| DELETE | `/sezone/{id}/dogadjaji/{id}`        | Brisanje događaja    | Token   |
+| PATCH  | `/sezone/{id}/dogadjaji/{id}/status` | Promena statusa      | Token   |
+
+### Rezultati
+
+| Metoda | Endpoint                                      | Opis               | Zaštita |
+| ------ | --------------------------------------------- | ------------------ | ------- |
+| GET    | `/sezone/{id}/dogadjaji/{id}/rezultati`       | Lista rezultata    | Javno   |
+| GET    | `/sezone/{id}/dogadjaji/{id}/rezultati/{id}`  | Detalji rezultata  | Javno   |
+| POST   | `/sezone/{id}/dogadjaji/{id}/rezultati`       | Unos rezultata     | Token   |
+| POST   | `/sezone/{id}/dogadjaji/{id}/rezultati/batch` | Masovni unos       | Token   |
+| PUT    | `/sezone/{id}/dogadjaji/{id}/rezultati/{id}`  | Izmena rezultata   | Token   |
+| DELETE | `/sezone/{id}/dogadjaji/{id}/rezultati/{id}`  | Brisanje rezultata | Token   |
+
+### Export CSV
+
+| Metoda | Endpoint                                       | Opis               | Zaštita |
+| ------ | ---------------------------------------------- | ------------------ | ------- |
+| GET    | `/export/timovi`                               | Export timova      | Token   |
+| GET    | `/export/sezone/{id}/tabela-rezultata`         | Export scoreboardа | Token   |
+| GET    | `/export/sezone/{id}/dogadjaji`                | Export događaja    | Token   |
+| GET    | `/export/sezone/{id}/dogadjaji/{id}/rezultati` | Export rezultata   | Token   |
+
+---
+
+### Query parametri za filtriranje
+
+**Sezone** `GET /sezone`
+
+```
+?aktivna=1          → samo aktivne sezone
+?naziv=2025         → pretraga po nazivu
+?od_datuma=2025-01-01
+?do_datuma=2025-12-31
+?sort=datum_pocetka&smer=desc
+?po_stranici=10&stranica=1
+```
+
+**Timovi** `GET /timovi`
+
+```
+?naziv=sove         → pretraga po nazivu
+?aktivan=1          → samo aktivni timovi
+?sezona_id=1        → timovi iz određene sezone
+?sort=naziv&smer=asc
+?po_stranici=10&stranica=1
+```
+
+**Događaji** `GET /sezone/{id}/dogadjaji`
+
+```
+?status=nadolazeci  → nadolazeci | u_toku | zavrsen
+?naziv=kviz         → pretraga po nazivu
+?od_datuma=2025-10-01
+?do_datuma=2025-12-31
+?sort=datum_dogadjaja&smer=asc
+?po_stranici=10&stranica=1
+```
+
+---
+
+### Format odgovora
+
+**Uspešan odgovor:**
+
+```json
+{
+    "uspesno": true,
+    "poruka": "Opis akcije.",
+    "podaci": {}
+}
+```
+
+**Odgovor sa greškom:**
+
+```json
+{
+    "uspesno": false,
+    "poruka": "Opis greške.",
+    "greske": {}
+}
+```
+
+### HTTP status kodovi
+
+| Kod | Opis                   |
+| --- | ---------------------- |
+| 200 | Uspešan zahtev         |
+| 201 | Resurs kreiran         |
+| 401 | Neautorizovan pristup  |
+| 404 | Resurs nije pronađen   |
+| 405 | Metoda nije dozvoljena |
+| 422 | Validaciona greška     |
+| 500 | Greška servera         |
+
+---
+
+## Testiranje
+
+### Postman
+
+Importuj kolekciju `PubKviz.postman_collection.json` u Postman.
+
+Postavi `base_url` varijablu na `http://localhost:8000/api/v1`.
+
+**Redosled testiranja:**
+
+1. Registracija korisnika → sačuvaj token
+2. Kreiranje sezone
+3. Kreiranje timova
+4. Prijava timova za sezonu
+5. Kreiranje događaja
+6. Unos rezultata (batch)
+7. Provera scoreboardа
+8. Export CSV
+
+### Struktura projekta
+
+```
+app/
+├── Exceptions/
+│   └── Handler.php
+├── Http/
+│   ├── Controllers/Api/
+│   │   ├── AutentifikacijaController.php
+│   │   ├── DogadjajController.php
+│   │   ├── ExportController.php
+│   │   ├── LozinkaController.php
+│   │   ├── RezultatController.php
+│   │   ├── SezonaController.php
+│   │   └── TimController.php
+│   └── Resources/
+│       └── ApiResponse.php
+└── Models/
+    ├── Dogadjaj.php
+    ├── Korisnik.php
+    ├── RezultatDogadjaja.php
+    ├── Sezona.php
+    └── Tim.php
+
+database/
+└── migrations/
+    ├── ..._create_sezone_table.php
+    ├── ..._create_timovi_table.php
+    ├── ..._create_tim_sezona_table.php
+    ├── ..._create_dogadjaji_table.php
+    ├── ..._create_rezultati_dogadjaja_table.php
+    ├── ..._create_korisnici_table.php
+    ├── ..._create_reset_lozinke_table.php
+    ├── ..._add_adresa_to_timovi_table.php
+    ├── ..._rename_opis_in_dogadjaji_table.php
+    ├── ..._drop_kontakt_telefon_from_timovi_table.php
+    ├── ..._add_constraints_to_rezultati_dogadjaja_table.php
+    ├── ..._create_lokacije_table.php
+    ├── ..._add_foreign_key_lokacija_to_dogadjaji_table.php
+    └── ..._add_index_to_sezone_table.php
+
+routes/
+└── api.php
+
+bootstrap/
+└── app.php
+```

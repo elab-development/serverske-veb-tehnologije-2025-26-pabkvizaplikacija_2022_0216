@@ -8,16 +8,54 @@ use App\Models\Dogadjaj;
 use App\Models\Sezona;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 
 class DogadjajController extends Controller
 {
-    public function index(Sezona $sezona): JsonResponse
+    /**
+     * GET /api/v1/sezone/{sezona}/dogadjaji
+     * Filtriranje: ?status=nadolazeci, ?naziv=kviz, ?od_datuma=2025-01-01
+     * Paginacija:  ?po_stranici=10&stranica=1
+     * Sortiranje:  ?sort=datum_dogadjaja&smer=asc
+     */
+    public function index(Request $request, Sezona $sezona): JsonResponse
     {
-        $dogadjaji = $sezona->dogadjaji()
-            ->orderBy('datum_dogadjaja')
-            ->get();
+        $query = $sezona->dogadjaji();
 
-        return ApiResponse::uspesno($dogadjaji, "Događaji u sezoni '{$sezona->naziv}'.");
+        // Filtriranje
+        if ($request->filled('status')) {
+            $dozvoljeniStatusi = ['nadolazeci', 'u_toku', 'zavrsen'];
+            if (in_array($request->status, $dozvoljeniStatusi)) {
+                $query->where('status', $request->status);
+            }
+        }
+
+        if ($request->filled('naziv')) {
+            $query->where('naziv', 'like', "%{$request->naziv}%");
+        }
+
+        if ($request->filled('od_datuma')) {
+            $query->where('datum_dogadjaja', '>=', $request->od_datuma);
+        }
+
+        if ($request->filled('do_datuma')) {
+            $query->where('datum_dogadjaja', '<=', $request->do_datuma);
+        }
+
+        // Sortiranje
+        $dozvoljenaPolja = ['naziv', 'datum_dogadjaja', 'status', 'created_at'];
+        $sortPolje = in_array($request->sort, $dozvoljenaPolja) ? $request->sort : 'datum_dogadjaja';
+        $sortSmer  = $request->smer === 'desc' ? 'desc' : 'asc';
+        $query->orderBy($sortPolje, $sortSmer);
+
+        // Paginacija
+        $poStranici = min((int) $request->get('po_stranici', 10), 50);
+        $rezultati  = $query->paginate($poStranici);
+
+        return ApiResponse::uspesno([
+            'podaci'     => $rezultati->items(),
+            'paginacija' => $this->formatujPaginaciju($rezultati),
+        ], "Događaji u sezoni '{$sezona->naziv}'.");
     }
 
     public function store(Request $request, Sezona $sezona): JsonResponse
@@ -73,14 +111,21 @@ class DogadjajController extends Controller
         return ApiResponse::obrisano('Događaj je uspešno obrisan.');
     }
 
-    public function aktivni(): JsonResponse
+    public function aktivni(Request $request): JsonResponse
     {
-        $dogadjaji = Dogadjaj::aktivan()
-            ->with('sezona:id,naziv,slug')
-            ->orderBy('datum_dogadjaja')
-            ->get();
+        $query = Dogadjaj::aktivan()->with('sezona:id,naziv,slug');
 
-        return ApiResponse::uspesno($dogadjaji, 'Svi aktivni događaji.');
+        if ($request->filled('sezona_id')) {
+            $query->where('sezona_id', $request->sezona_id);
+        }
+
+        $poStranici = min((int) $request->get('po_stranici', 10), 50);
+        $rezultati  = $query->orderBy('datum_dogadjaja')->paginate($poStranici);
+
+        return ApiResponse::uspesno([
+            'podaci'     => $rezultati->items(),
+            'paginacija' => $this->formatujPaginaciju($rezultati),
+        ], 'Svi aktivni događaji.');
     }
 
     public function promeniStatus(Request $request, Sezona $sezona, Dogadjaj $dogadjaj): JsonResponse
@@ -104,5 +149,17 @@ class DogadjajController extends Controller
                 'poruka'  => 'Događaj ne pripada ovoj sezoni.',
             ], 404));
         }
+    }
+
+    private function formatujPaginaciju($paginacija): array
+    {
+        return [
+            'ukupno'        => $paginacija->total(),
+            'po_stranici'   => $paginacija->perPage(),
+            'stranica'      => $paginacija->currentPage(),
+            'ukupno_strana' => $paginacija->lastPage(),
+            'sledeca'       => $paginacija->nextPageUrl(),
+            'prethodna'     => $paginacija->previousPageUrl(),
+        ];
     }
 }

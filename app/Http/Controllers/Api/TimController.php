@@ -10,11 +10,44 @@ use Illuminate\Http\Request;
 
 class TimController extends Controller
 {
-    public function index(): JsonResponse
+    /**
+     * GET /api/v1/timovi
+     * Filtriranje: ?naziv=sove, ?aktivan=1, ?sezona_id=1
+     * Paginacija:  ?po_stranici=10&stranica=1
+     * Sortiranje:  ?sort=naziv&smer=asc
+     */
+    public function index(Request $request): JsonResponse
     {
-        $timovi = Tim::aktivan()->orderBy('naziv')->get();
+        $query = Tim::query();
 
-        return ApiResponse::uspesno($timovi, 'Lista svih aktivnih timova.');
+        // Filtriranje
+        if ($request->filled('naziv')) {
+            $query->where('naziv', 'like', "%{$request->naziv}%");
+        }
+
+        if ($request->has('aktivan')) {
+            $query->where('aktivan', (bool) $request->aktivan);
+        }
+
+        // Filtriranje po sezoni – timovi koji su registrovani u sezoni
+        if ($request->filled('sezona_id')) {
+            $query->whereHas('sezone', fn($q) => $q->where('sezone.id', $request->sezona_id));
+        }
+
+        // Sortiranje
+        $dozvoljenaPolja = ['naziv', 'created_at'];
+        $sortPolje = in_array($request->sort, $dozvoljenaPolja) ? $request->sort : 'naziv';
+        $sortSmer  = $request->smer === 'desc' ? 'desc' : 'asc';
+        $query->orderBy($sortPolje, $sortSmer);
+
+        // Paginacija
+        $poStranici = min((int) $request->get('po_stranici', 10), 50);
+        $rezultati  = $query->paginate($poStranici);
+
+        return ApiResponse::uspesno([
+            'podaci'     => $rezultati->items(),
+            'paginacija' => $this->formatujPaginaciju($rezultati),
+        ], 'Lista timova.');
     }
 
     public function store(Request $request): JsonResponse
@@ -88,5 +121,17 @@ class TimController extends Controller
             'tim'        => $tim->only(['id', 'naziv', 'slug', 'logo_url']),
             'statistike' => $statistike,
         ], 'Statistike tima po sezonama.');
+    }
+
+    private function formatujPaginaciju($paginacija): array
+    {
+        return [
+            'ukupno'        => $paginacija->total(),
+            'po_stranici'   => $paginacija->perPage(),
+            'stranica'      => $paginacija->currentPage(),
+            'ukupno_strana' => $paginacija->lastPage(),
+            'sledeca'       => $paginacija->nextPageUrl(),
+            'prethodna'     => $paginacija->previousPageUrl(),
+        ];
     }
 }
